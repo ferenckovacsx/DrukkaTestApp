@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import okhttp3.Cookie;
 import okhttp3.CookieJar;
@@ -41,34 +42,37 @@ public class APIClient {
         HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
         interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
 
-        OkHttpClient client = new OkHttpClient.Builder().
-                addInterceptor(interceptor).
-                cookieJar(new CookieJar() {
-                    private final HashMap<HttpUrl, List<Cookie>> cookieStore = new HashMap<>();
+        OkHttpClient client = new OkHttpClient.Builder()
+                .connectTimeout(10, TimeUnit.SECONDS)
+                .writeTimeout(20, TimeUnit.SECONDS)
+                .readTimeout(30, TimeUnit.SECONDS).addInterceptor(interceptor).
+                        cookieJar(new CookieJar() {
+                            private final HashMap<HttpUrl, List<Cookie>> cookieStore = new HashMap<>();
 
-                    @Override
-                    public void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
-                        cookieStore.put(url, cookies);
+                            @Override
+                            public void saveFromResponse(HttpUrl url, List<Cookie> cookies) {
+                                cookieStore.put(url, cookies);
 
-                        //retrieve cookies and save them to sharedpreferences
-                        for (int i = 0; i < cookies.size(); i++) {
+                                //retrieve cookies and save them to sharedpreferences
+                                for (int i = 0; i < cookies.size(); i++) {
 
-                            cookieValue = cookies.get(i).toString();
+                                    cookieValue = cookies.get(i).toString();
 
-                            SharedPreferences.Editor editor = sharedpreferences.edit();
-                            editor.putString("cookieValue", cookieValue);
-                            editor.apply();
-                        }
+                                    SharedPreferences.Editor editor = sharedpreferences.edit();
+                                    editor.putString("cookieValue", cookieValue);
+                                    editor.apply();
+                                }
 
-                    }
+                            }
 
-                    @Override
-                    public List<Cookie> loadForRequest(HttpUrl url) {
+                            @Override
+                            public List<Cookie> loadForRequest(HttpUrl url) {
 
-                        List<Cookie> cookies = cookieStore.get(url);
-                        return cookies != null ? cookies : new ArrayList<Cookie>();
-                    }
-                }).build();
+                                List<Cookie> cookies = cookieStore.get(url);
+                                return cookies != null ? cookies : new ArrayList<Cookie>();
+                            }
+                        }).
+                        build();
 
 
         retrofit = new Retrofit.Builder()

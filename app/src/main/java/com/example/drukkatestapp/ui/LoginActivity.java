@@ -1,6 +1,7 @@
 package com.example.drukkatestapp.ui;
 
 import android.Manifest;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
@@ -38,9 +39,12 @@ public class LoginActivity extends AppCompatActivity implements RegistrationFrag
     EditText emailEditText, passwordEditText;
     String emailString, passwordString;
     Button loginButton;
+
     Utilities utilities;
 
     APIInterface apiInterface;
+
+    ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,7 +101,7 @@ public class LoginActivity extends AppCompatActivity implements RegistrationFrag
 
                 //check if device is online
                 if (!utilities.isOnline()) {
-                    Toast.makeText(LoginActivity.this, "No internet connection.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(LoginActivity.this, "No internet connection.", Toast.LENGTH_SHORT).show();
                 } else {
                     //email is empty
                     if (emailString.equals("")) {
@@ -155,7 +159,7 @@ public class LoginActivity extends AppCompatActivity implements RegistrationFrag
                 int responseCode = response.code();
                 switch (responseCode) {
                     case 200:
-                        Toast.makeText(LoginActivity.this, "200: Login Succesful", Toast.LENGTH_LONG).show();
+                        Toast.makeText(LoginActivity.this, "200: Login Succesful", Toast.LENGTH_SHORT).show();
 
                         Log.i(TAG, "Login successful");
 
@@ -167,7 +171,7 @@ public class LoginActivity extends AppCompatActivity implements RegistrationFrag
                         break;
                     case 401:
                         Log.i(TAG, "Wrong username or password");
-                        Toast.makeText(LoginActivity.this, "401: Invalid username or password", Toast.LENGTH_LONG).show();
+                        Toast.makeText(LoginActivity.this, "401: Invalid username or password", Toast.LENGTH_SHORT).show();
                         break;
                     default:
                         Log.i(TAG, "Login failed");

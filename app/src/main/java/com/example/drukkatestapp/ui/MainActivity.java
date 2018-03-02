@@ -1,20 +1,18 @@
 package com.example.drukkatestapp.ui;
 
 import android.app.Activity;
-import android.content.ContentResolver;
+import android.app.ProgressDialog;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
-import android.provider.OpenableColumns;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
@@ -22,22 +20,17 @@ import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.drukkatestapp.DocumentsListAdapter;
-import com.example.drukkatestapp.pojo.FilePOJO;
 import com.example.drukkatestapp.R;
+import com.example.drukkatestapp.pojo.DeleteFilePOJO;
+import com.example.drukkatestapp.pojo.FilePOJO;
 import com.example.drukkatestapp.retrofit.APIClient;
 import com.example.drukkatestapp.retrofit.APIInterface;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 
 import okhttp3.MediaType;
@@ -47,8 +40,6 @@ import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.Callback;
 import retrofit2.Response;
-
-import static android.os.Environment.DIRECTORY_PICTURES;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -64,9 +55,11 @@ public class MainActivity extends AppCompatActivity {
     ImageView deleteDocumentBtn;
     ImageView logoutBtn;
 
-    ArrayList<FilePOJO> listOfFiles;
+    ArrayList<FilePOJO> listOfFiles = new ArrayList<>();
 
     APIInterface apiInterface;
+
+    ProgressDialog progressDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -79,26 +72,16 @@ public class MainActivity extends AppCompatActivity {
         deleteDocumentBtn = findViewById(R.id.delete_document);
         logoutBtn = findViewById(R.id.logout);
 
+        progressDialog = new ProgressDialog(this);
+
+
         //retrofit
         APIClient apiClient = new APIClient(this);
         apiInterface = apiClient.getClient().create(APIInterface.class);
 
-        listOfFiles = getDocuments();
-
         Log.i(TAG, "number of files: " + listOfFiles.size());
 
-        //recyclerview with custom adapter
-        recyclerView.setHasFixedSize(true);
-        layoutManager = new LinearLayoutManager(this);
-        recyclerView.setLayoutManager(layoutManager);
-
-        //add divider between list items
-        DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(recyclerView.getContext(), 1);
-        recyclerView.addItemDecoration(dividerItemDecoration);
-
-        listAdapter = new DocumentsListAdapter(listOfFiles);
-        recyclerView.setAdapter(listAdapter);
-
+        getFiles();
 
         addNewDocumentBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -115,6 +98,7 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v) {
 
                 deleteDocument(selectedItemUUID);
+                deleteDocumentBtn.setVisibility(View.GONE);
 
             }
         });
@@ -128,17 +112,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-
-        listAdapter.setOnItemSelectedListener(new DocumentsListAdapter.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(int position, String uuid) {
-                deleteDocumentBtn.setVisibility(View.VISIBLE);
-                selectedItemPosition = position;
-                selectedItemUUID = uuid;
-                Log.i(TAG, "item is selected: " + uuid);
-            }
-        });
-
     }
 
 
@@ -148,11 +121,10 @@ public class MainActivity extends AppCompatActivity {
 
         if (requestCode == 1 && resultCode == Activity.RESULT_OK) {
 
-
             Log.i(TAG, "filePath: " + getPath(MainActivity.this, data.getData()));
 
             File file = new File(getPath(MainActivity.this, data.getData()));
-            long fileSize = file.length()/1024;
+            long fileSize = file.length() / 1024;
             Log.i(TAG, "selected filesize: " + fileSize);
 
             uploadDocument(data.getData());
@@ -160,10 +132,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-
-    ArrayList<FilePOJO> getDocuments() {
-
-        final ArrayList<FilePOJO> documents = new ArrayList<>();
+    void getFiles() {
 
         SharedPreferences cookiePref = getApplicationContext().getSharedPreferences("cookiePref", MODE_PRIVATE);
         String cookieValue = cookiePref.getString("cookieValue", "");
@@ -173,36 +142,53 @@ public class MainActivity extends AppCompatActivity {
 
         call.enqueue(new Callback<ArrayList<FilePOJO>>() {
 
-
             @Override
             public void onResponse(Call<ArrayList<FilePOJO>> call, retrofit2.Response<ArrayList<FilePOJO>> response) {
 
                 int responseCode = response.code();
                 switch (responseCode) {
                     case 200:
-
-                        //add retrieved data to arraylist
-                        documents.addAll(response.body());
-
-                        //notify adapter about newly retrieved items
-                        listAdapter.notifyDataSetChanged();
-
                         Log.i(TAG, "Fetching data was successful. Number of files: " + response.body().size());
+                        Log.i(TAG, "getFiles() listoffiles before" + listOfFiles.size());
+
+                        listOfFiles = response.body();
+
+                        //recyclerview with custom adapter
+                        recyclerView.setHasFixedSize(true);
+                        layoutManager = new LinearLayoutManager(MainActivity.this);
+                        recyclerView.setLayoutManager(layoutManager);
+
+                        //add divider between list items
+                        DividerItemDecoration dividerItemDecoration = new DividerItemDecoration(recyclerView.getContext(), 1);
+                        recyclerView.addItemDecoration(dividerItemDecoration);
+
+                        listAdapter = new DocumentsListAdapter(listOfFiles);
+                        recyclerView.setAdapter(listAdapter);
+
+                        listAdapter.setOnItemSelectedListener(new DocumentsListAdapter.OnItemSelectedListener() {
+                            @Override
+                            public void onItemSelected(int position, String uuid) {
+                                deleteDocumentBtn.setVisibility(View.VISIBLE);
+                                selectedItemPosition = position;
+                                selectedItemUUID = uuid;
+                                Log.i(TAG, "Item is selected: " + uuid);
+                            }
+                        });
+
                         break;
 
                     default:
-                        Log.i(TAG, "Unauthorized");
+                        Log.i(TAG, "Unkwonwn error");
                 }
             }
 
             @Override
             public void onFailure(Call<ArrayList<FilePOJO>> call, Throwable t) {
-
-
+                Log.e(TAG, "Get files error" + t.toString());
             }
         });
 
-        return documents;
+        Log.i(TAG, "retrieved files return: " + listOfFiles.size());
     }
 
     private void deleteDocument(String uuid) {
@@ -211,7 +197,7 @@ public class MainActivity extends AppCompatActivity {
         String cookieValue = cookiePref.getString("cookieValue", "");
         Log.i(TAG, "cookieValue: " + cookieValue);
 
-        Call<ResponseBody> call = apiInterface.delete_document(cookieValue, uuid);
+        Call<ResponseBody> call = apiInterface.delete_document(cookieValue, new DeleteFilePOJO(uuid));
 
         call.enqueue(new Callback<ResponseBody>() {
 
@@ -226,6 +212,10 @@ public class MainActivity extends AppCompatActivity {
                         listOfFiles.remove(selectedItemPosition);
                         listAdapter.notifyItemRemoved(selectedItemPosition);
                         listAdapter.notifyItemRangeChanged(selectedItemPosition, listOfFiles.size());
+
+                        selectedItemPosition = -1;
+                        listAdapter.notifyDataSetChanged();
+
 
                         Log.i(TAG, "Deletion successful");
                         break;
@@ -245,46 +235,64 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<ResponseBody> call, Throwable t) {
-
-
+                Log.e(TAG, "delete document error" + t.toString());
             }
         });
     }
 
     private void uploadDocument(Uri fileUri) {
 
-        String testFilePath = Environment.getExternalStoragePublicDirectory(DIRECTORY_PICTURES) + "/" + "1519950277941.jpg";
+        progressDialog.setMessage("Uploading. Please wait");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
 
-        // create RequestBody instance from file
-        RequestBody requestFile = RequestBody.create(MediaType.parse(getContentResolver().getType(fileUri)), testFilePath);
+        //get actual filePath from URI
+        File file = new File(getPath(MainActivity.this, fileUri));
 
-        Log.i(TAG, "filePath: " + getPath(MainActivity.this, fileUri));
-//        RequestBody requestFile = RequestBody.create(MediaType.parse(getContentResolver().getType(fileUri)), getPath(MainActivity.this, fileUri));
+        RequestBody requestFile = RequestBody.create(MediaType.parse("multipart/form-data"), file);
+        MultipartBody.Part body = MultipartBody.Part.createFormData("file", file.getName(), requestFile);
 
-        MultipartBody.Part body = MultipartBody.Part.createFormData("doc", getFileNameFromURI(fileUri), requestFile);
-
-        //retrieve cookie from shared preferences
+//        retrieve cookie from shared preferences
         SharedPreferences cookiePref = getApplicationContext().getSharedPreferences("cookiePref", MODE_PRIVATE);
         String cookieValue = cookiePref.getString("cookieValue", "");
-
 
         Call<ResponseBody> call = apiInterface.add_documents(cookieValue, body);
         call.enqueue(new Callback<ResponseBody>() {
             @Override
             public void onResponse(Call<ResponseBody> call, Response<ResponseBody> response) {
-                Log.v("Upload", "success: " + response.code());
 
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        getDocuments();
-                    }
-                }, 2000);
+                int responseCode = response.code();
+                switch (responseCode) {
+                    case 201:
+
+                        progressDialog.cancel();
+                        Toast.makeText(MainActivity.this, "Upload successful", Toast.LENGTH_SHORT).show();
+
+                        //refresh list with new data from server
+                        getFiles();
+
+                        Log.i(TAG, "201: Document upload successful");
+                        break;
+
+                    case 401:
+                        Log.i(TAG, "401: Not logged in");
+                        break;
+
+                    case 400:
+                        Log.i(TAG, "400: Bad request");
+                        break;
+
+                    default:
+                        Log.i(TAG, "Unkwnown error");
+                }
             }
 
             @Override
             public void onFailure(Call<ResponseBody> call, Throwable t) {
                 Log.e("Upload error:", t.getMessage());
+                progressDialog.cancel();
+                Toast.makeText(MainActivity.this, "Timout error. File was not uploaded.", Toast.LENGTH_SHORT).show();
+
             }
         });
     }
@@ -309,116 +317,31 @@ public class MainActivity extends AppCompatActivity {
                         Intent loginIntent = new Intent(MainActivity.this, LoginActivity.class);
                         startActivity(loginIntent);
 
-                        Log.i(TAG, "Logout successful ");
+                        MainActivity.this.finish();
+
+                        Log.i(TAG, "200: Logout successful ");
                         break;
 
                     case 401:
-                        Log.i(TAG, "Not logged in");
+                        Log.i(TAG, "401: Not logged in");
                         break;
 
                     case 400:
-                        Log.i(TAG, "Bad request");
+                        Log.i(TAG, "400: Bad request");
                         break;
 
                     default:
-                        Log.i(TAG, "Unauthorized");
+                        Log.i(TAG, "Unkwnown error");
                 }
             }
 
             @Override
             public void onFailure(Call<ResponseBody> call, Throwable t) {
-
-
+                Log.e(TAG, "logout error" + t.toString());
             }
         });
     }
 
-    public String getPathFromURI(Uri uri) {
-
-        String fileName = getFileNameFromURI(uri);
-        File tempFile;
-
-        try {
-            InputStream inputStream = getContentResolver().openInputStream(uri);
-
-            try {
-                byte[] buffer = new byte[inputStream.available()];
-                inputStream.read(buffer);
-
-                tempFile = new File(MainActivity.this.getFilesDir(), fileName);
-                OutputStream outStream = new FileOutputStream(tempFile);
-                outStream.write(buffer);
-                outStream.close();
-
-                Log.i(TAG, "temp fileName: " + tempFile.getName());
-                Log.i(TAG, "temp filePath: " + tempFile.getPath());
-                Log.i(TAG, "temp fileAbsPath: " + tempFile.getAbsolutePath());
-
-                return tempFile.getPath();
-
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        return null;
-    }
-
-    public String getFileNameFromURI(Uri uri) {
-        String result = null;
-        if (uri.getScheme().equals("content")) {
-            Cursor cursor = getContentResolver().query(uri, null, null, null, null);
-            try {
-                if (cursor != null && cursor.moveToFirst()) {
-                    result = cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME));
-                }
-            } finally {
-                cursor.close();
-            }
-        }
-        if (result == null) {
-            result = uri.getPath();
-            int cut = result.lastIndexOf('/');
-            if (cut != -1) {
-                result = result.substring(cut + 1);
-            }
-        }
-        return result;
-    }
-
-
-    String savefile(Uri sourceuri) {
-
-        String sourceFilename = sourceuri.getPath();
-        String destinationFilename = MainActivity.this.getFilesDir() + "/" + getFileNameFromURI(sourceuri);
-
-        BufferedInputStream bis = null;
-        BufferedOutputStream bos = null;
-
-        try {
-            bis = new BufferedInputStream(new FileInputStream(sourceFilename));
-            bos = new BufferedOutputStream(new FileOutputStream(destinationFilename, false));
-            byte[] buf = new byte[1024];
-            bis.read(buf);
-            do {
-                bos.write(buf);
-            } while (bis.read(buf) != -1);
-
-            return destinationFilename;
-        } catch (IOException e) {
-            e.printStackTrace();
-        } finally {
-            try {
-                if (bis != null) bis.close();
-                if (bos != null) bos.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        return destinationFilename;
-    }
 
     public static String getPath(final Context context, final Uri uri) {
 
@@ -434,7 +357,6 @@ public class MainActivity extends AppCompatActivity {
                     return Environment.getExternalStorageDirectory() + "/" + split[1];
                 }
 
-                // TODO handle non-primary volumes
             }
             // DownloadsProvider
             else if (isDownloadsDocument(uri)) {
@@ -495,8 +417,7 @@ public class MainActivity extends AppCompatActivity {
      * @param selectionArgs (Optional) Selection arguments used in the query.
      * @return The value of the _data column, which is typically a file path.
      */
-    public static String getDataColumn(Context context, Uri uri, String selection,
-                                       String[] selectionArgs) {
+    public static String getDataColumn(Context context, Uri uri, String selection, String[] selectionArgs) {
 
         Cursor cursor = null;
         final String column = "_data";
@@ -517,7 +438,6 @@ public class MainActivity extends AppCompatActivity {
         }
         return null;
     }
-
 
     /**
      * @param uri The Uri to check.
@@ -550,4 +470,5 @@ public class MainActivity extends AppCompatActivity {
     public static boolean isGooglePhotosUri(Uri uri) {
         return "com.google.android.apps.photos.content".equals(uri.getAuthority());
     }
+
 }

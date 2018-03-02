@@ -4,6 +4,7 @@ package com.example.drukkatestapp.retrofit;
  * Created by ferenckovacsx on 2018-03-01.
  */
 
+import com.example.drukkatestapp.pojo.DeleteFilePOJO;
 import com.example.drukkatestapp.pojo.FilePOJO;
 import com.example.drukkatestapp.pojo.LoginRequestPOJO;
 import com.example.drukkatestapp.pojo.LoginResponsePOJO;
@@ -14,12 +15,15 @@ import okhttp3.MultipartBody;
 import okhttp3.ResponseBody;
 import retrofit2.Call;
 import retrofit2.http.Body;
+import retrofit2.http.DELETE;
 import retrofit2.http.GET;
 import retrofit2.http.HTTP;
 import retrofit2.http.Header;
 import retrofit2.http.Multipart;
 import retrofit2.http.POST;
 import retrofit2.http.Part;
+import retrofit2.http.Path;
+import retrofit2.http.Query;
 
 public interface APIInterface {
 
@@ -37,7 +41,11 @@ public interface APIInterface {
     Call<ResponseBody> add_documents(@Header("Cookie") String cookie, @Part MultipartBody.Part file);
 
     @HTTP(method = "DELETE", path = "/delete_document", hasBody = true)
-    Call<ResponseBody> delete_document(@Header("Cookie") String cookie, @Body String uuid);
+    Call<ResponseBody> delete_document(@Header("Cookie") String cookie, @Body DeleteFilePOJO body);
+
+//    @DELETE("/delete_document/{uuid}")
+//    Call<ResponseBody> delete_document(@Header("Cookie") String cookie, @Path("uuid") String uuid);
+
 
     @GET("/logout")
     Call<ResponseBody> logout(@Header("Cookie") String cookie);
