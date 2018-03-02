@@ -17,7 +17,6 @@
         android:ellipsize="marquee"
         android:marqueeRepeatLimit="marquee_forever"
         android:singleLine="true"
-        android:text="document.pdf"
         android:textSize="20sp" />
 
     <TextView
@@ -25,7 +24,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentEnd="true"
-        android:text="16000"
         android:textSize="20sp" />
 
 </RelativeLayout>

@@ -1,6 +1,7 @@
 package com.example.drukkatestapp.ui;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.net.Uri;
@@ -18,9 +19,9 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import com.example.drukkatestapp.pojo.LoginRequestPOJO;
-import com.example.drukkatestapp.Utilities;
 import com.example.drukkatestapp.R;
+import com.example.drukkatestapp.Utilities;
+import com.example.drukkatestapp.pojo.LoginRequestPOJO;
 import com.example.drukkatestapp.retrofit.APIClient;
 import com.example.drukkatestapp.retrofit.APIInterface;
 
@@ -165,7 +166,6 @@ public class RegistrationFragment extends Fragment {
                     }
 
                     if (utilities.isValidEmail(email) && !password.equals("") && confirmPassword.equals(password)) {
-                        Toast.makeText(getContext(), "ALL GOOD IN DA' HOOD", Toast.LENGTH_LONG).show();
                         invalidEmailTv.setVisibility(View.GONE);
                         emptyPasswrodTv.setVisibility(View.GONE);
                         passwordMismatchTv.setVisibility(View.GONE);
@@ -225,6 +225,11 @@ public class RegistrationFragment extends Fragment {
                 switch (responseCode) {
                     case 201:
                         Toast.makeText(getContext(), "201: Registration successful", Toast.LENGTH_SHORT).show();
+
+                        Intent intent = new Intent(getActivity(), MainActivity.class);
+                        startActivity(intent);
+
+                        getActivity().finish();
 
                         break;
                     case 406:

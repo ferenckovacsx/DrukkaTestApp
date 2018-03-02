@@ -4,15 +4,16 @@ import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.ContentUris;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.Handler;
 import android.provider.DocumentsContract;
 import android.provider.MediaStore;
+import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
@@ -45,15 +46,16 @@ public class MainActivity extends AppCompatActivity {
 
     String TAG = "DOCUMENTSACTIVITY";
     int selectedItemPosition;
+    int fileCount;
+    int counter = 1;
     String selectedItemUUID;
 
     private RecyclerView recyclerView;
     private DocumentsListAdapter listAdapter;
     private RecyclerView.LayoutManager layoutManager;
 
-    ImageView addNewDocumentBtn;
-    ImageView deleteDocumentBtn;
-    ImageView logoutBtn;
+    ImageView addNewDocumentButton, deleteDocumentButton, logoutButton, doneButton;
+    TextView emptyListTextView, documentsHeaderTextView;
 
     ArrayList<FilePOJO> listOfFiles = new ArrayList<>();
 
@@ -68,12 +70,19 @@ public class MainActivity extends AppCompatActivity {
 
         //UI elements
         recyclerView = findViewById(R.id.documents_list);
-        addNewDocumentBtn = findViewById(R.id.add_new_document);
-        deleteDocumentBtn = findViewById(R.id.delete_document);
-        logoutBtn = findViewById(R.id.logout);
+        addNewDocumentButton = findViewById(R.id.add_new_document);
+        deleteDocumentButton = findViewById(R.id.delete_document);
+        logoutButton = findViewById(R.id.logout);
+        doneButton = findViewById(R.id.done);
+        emptyListTextView = findViewById(R.id.empty_list_textview);
+        documentsHeaderTextView = findViewById(R.id.header_name);
+
+        if (listOfFiles.size() == 0) {
+            documentsHeaderTextView.setVisibility(View.GONE);
+            emptyListTextView.setVisibility(View.VISIBLE);
+        }
 
         progressDialog = new ProgressDialog(this);
-
 
         //retrofit
         APIClient apiClient = new APIClient(this);
@@ -81,9 +90,9 @@ public class MainActivity extends AppCompatActivity {
 
         Log.i(TAG, "number of files: " + listOfFiles.size());
 
-        getFiles();
+        getDocuments();
 
-        addNewDocumentBtn.setOnClickListener(new View.OnClickListener() {
+        addNewDocumentButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent selectFileIntent = new Intent(Intent.ACTION_GET_CONTENT);
@@ -93,21 +102,52 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        deleteDocumentBtn.setOnClickListener(new View.OnClickListener() {
+        deleteDocumentButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
                 deleteDocument(selectedItemUUID);
-                deleteDocumentBtn.setVisibility(View.GONE);
 
             }
         });
 
-        logoutBtn.setOnClickListener(new View.OnClickListener() {
+        logoutButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
                 logout();
+
+            }
+        });
+
+        doneButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                AlertDialog.Builder dialogBuilder = new AlertDialog.Builder(MainActivity.this);
+                dialogBuilder.setTitle("Finish process.");
+                dialogBuilder.setMessage("Are you sure? \nYour account will be inactivated.");
+                dialogBuilder.setCancelable(true);
+
+                dialogBuilder.setPositiveButton(
+                        "Yes, I'm done",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                dialog.cancel();
+                                close();
+                            }
+                        });
+
+                dialogBuilder.setNegativeButton(
+                        "Cancel",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int id) {
+                                dialog.cancel();
+                            }
+                        });
+
+                AlertDialog alert11 = dialogBuilder.create();
+                alert11.show();
 
             }
         });
@@ -121,18 +161,26 @@ public class MainActivity extends AppCompatActivity {
 
         if (requestCode == 1 && resultCode == Activity.RESULT_OK) {
 
-            Log.i(TAG, "filePath: " + getPath(MainActivity.this, data.getData()));
+            Log.i(TAG, "COUNTER: " + counter);
 
-            File file = new File(getPath(MainActivity.this, data.getData()));
-            long fileSize = file.length() / 1024;
-            Log.i(TAG, "selected filesize: " + fileSize);
+            Uri uri;
 
-            uploadDocument(data.getData());
+            if (data.getClipData() == null) {
+                uri = data.getData();
+                addDocuments(uri);
+                fileCount = 1;
 
+            } else {
+                for (int i = 0; i < data.getClipData().getItemCount(); i++) {
+                    uri = data.getClipData().getItemAt(i).getUri();
+                    addDocuments(uri);
+                    fileCount = data.getClipData().getItemCount();
+                }
+            }
         }
     }
 
-    void getFiles() {
+    void getDocuments() {
 
         SharedPreferences cookiePref = getApplicationContext().getSharedPreferences("cookiePref", MODE_PRIVATE);
         String cookieValue = cookiePref.getString("cookieValue", "");
@@ -149,9 +197,16 @@ public class MainActivity extends AppCompatActivity {
                 switch (responseCode) {
                     case 200:
                         Log.i(TAG, "Fetching data was successful. Number of files: " + response.body().size());
-                        Log.i(TAG, "getFiles() listoffiles before" + listOfFiles.size());
+                        Log.i(TAG, "getDocuments() listoffiles before" + listOfFiles.size());
 
                         listOfFiles = response.body();
+                        if (listOfFiles.size() > 0) {
+                            emptyListTextView.setVisibility(View.GONE);
+                            documentsHeaderTextView.setVisibility(View.VISIBLE);
+                        } else {
+                            emptyListTextView.setVisibility(View.VISIBLE);
+                            documentsHeaderTextView.setVisibility(View.GONE);
+                        }
 
                         //recyclerview with custom adapter
                         recyclerView.setHasFixedSize(true);
@@ -168,7 +223,7 @@ public class MainActivity extends AppCompatActivity {
                         listAdapter.setOnItemSelectedListener(new DocumentsListAdapter.OnItemSelectedListener() {
                             @Override
                             public void onItemSelected(int position, String uuid) {
-                                deleteDocumentBtn.setVisibility(View.VISIBLE);
+                                deleteDocumentButton.setVisibility(View.VISIBLE);
                                 selectedItemPosition = position;
                                 selectedItemUUID = uuid;
                                 Log.i(TAG, "Item is selected: " + uuid);
@@ -187,11 +242,13 @@ public class MainActivity extends AppCompatActivity {
                 Log.e(TAG, "Get files error" + t.toString());
             }
         });
-
-        Log.i(TAG, "retrieved files return: " + listOfFiles.size());
     }
 
     private void deleteDocument(String uuid) {
+
+        progressDialog.setMessage("Deleting document...");
+        progressDialog.setCancelable(false);
+        progressDialog.show();
 
         SharedPreferences cookiePref = getApplicationContext().getSharedPreferences("cookiePref", MODE_PRIVATE);
         String cookieValue = cookiePref.getString("cookieValue", "");
@@ -209,13 +266,9 @@ public class MainActivity extends AppCompatActivity {
                 switch (responseCode) {
                     case 200:
 
-                        listOfFiles.remove(selectedItemPosition);
-                        listAdapter.notifyItemRemoved(selectedItemPosition);
-                        listAdapter.notifyItemRangeChanged(selectedItemPosition, listOfFiles.size());
-
-                        selectedItemPosition = -1;
-                        listAdapter.notifyDataSetChanged();
-
+                        progressDialog.cancel();
+                        deleteDocumentButton.setVisibility(View.GONE);
+                        getDocuments();
 
                         Log.i(TAG, "Deletion successful");
                         break;
@@ -235,19 +288,35 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(Call<ResponseBody> call, Throwable t) {
+                progressDialog.cancel();
                 Log.e(TAG, "delete document error" + t.toString());
             }
         });
     }
 
-    private void uploadDocument(Uri fileUri) {
+    private void addDocuments(Uri fileuri) {
 
-        progressDialog.setMessage("Uploading. Please wait");
-        progressDialog.setCancelable(false);
-        progressDialog.show();
+        //only show progressdialog once
+        if (counter == 1) {
+            progressDialog.setMessage("Uploading. Please wait.");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+        }
 
-        //get actual filePath from URI
-        File file = new File(getPath(MainActivity.this, fileUri));
+        //not working :(
+//        List<MultipartBody.Part> parts = new ArrayList<>();
+//
+//        for (int i = 0; i < uris.size() ; i++) {
+//
+//            File file = new File(getPath(MainActivity.this, uris.get(i)));
+//
+//            RequestBody requestFile = RequestBody.create(MediaType.parse("multipart/form-data"), file);
+//            MultipartBody.Part body = MultipartBody.Part.createFormData("file", file.getName(), requestFile);
+//
+//            parts.add(body);
+//        }
+
+        File file = new File(getPath(MainActivity.this, fileuri));
 
         RequestBody requestFile = RequestBody.create(MediaType.parse("multipart/form-data"), file);
         MultipartBody.Part body = MultipartBody.Part.createFormData("file", file.getName(), requestFile);
@@ -265,11 +334,16 @@ public class MainActivity extends AppCompatActivity {
                 switch (responseCode) {
                     case 201:
 
-                        progressDialog.cancel();
-                        Toast.makeText(MainActivity.this, "Upload successful", Toast.LENGTH_SHORT).show();
+                        if (fileCount == counter) {
+                            progressDialog.cancel();
+                            counter = 0;
+                            Toast.makeText(MainActivity.this, "Upload successful", Toast.LENGTH_SHORT).show();
+                        }
+                        counter += 1;
+
 
                         //refresh list with new data from server
-                        getFiles();
+                        getDocuments();
 
                         Log.i(TAG, "201: Document upload successful");
                         break;
@@ -320,6 +394,53 @@ public class MainActivity extends AppCompatActivity {
                         MainActivity.this.finish();
 
                         Log.i(TAG, "200: Logout successful ");
+                        break;
+
+                    case 401:
+                        Log.i(TAG, "401: Not logged in");
+                        break;
+
+                    case 400:
+                        Log.i(TAG, "400: Bad request");
+                        break;
+
+                    default:
+                        Log.i(TAG, "Unkwnown error");
+                }
+            }
+
+            @Override
+            public void onFailure(Call<ResponseBody> call, Throwable t) {
+                Log.e(TAG, "logout error" + t.toString());
+            }
+        });
+    }
+
+    private void close() {
+
+        SharedPreferences cookiePref = getApplicationContext().getSharedPreferences("cookiePref", MODE_PRIVATE);
+        String cookieValue = cookiePref.getString("cookieValue", "");
+        Log.i(TAG, "cookieValue: " + cookieValue);
+
+        Call<ResponseBody> call = apiInterface.close(cookieValue);
+
+        call.enqueue(new Callback<ResponseBody>() {
+
+            @Override
+            public void onResponse(Call<ResponseBody> call, retrofit2.Response<ResponseBody> response) {
+
+                int responseCode = response.code();
+                switch (responseCode) {
+                    case 200:
+
+                        Intent loginIntent = new Intent(MainActivity.this, LoginActivity.class);
+                        startActivity(loginIntent);
+
+                        Toast.makeText(MainActivity.this, "Process finished. Good luck!", Toast.LENGTH_SHORT).show();
+
+                        MainActivity.this.finish();
+
+                        Log.i(TAG, "200: Account closed ");
                         break;
 
                     case 401:

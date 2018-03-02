@@ -61,7 +61,7 @@
             android:backgroundTint="@color/colorPrimary"
             android:hint="@string/email_hint"
             android:inputType="textEmailAddress"
-            android:textColor="@color/colorAccent"
+            android:textColor="#ffffff"
             android:textColorHint="@color/colorPrimary" />
     </android.support.design.widget.TextInputLayout>
 
@@ -87,7 +87,7 @@
             android:backgroundTint="@color/colorPrimary"
             android:hint="@string/password_hint"
             android:inputType="textPassword"
-            android:textColor="@color/colorAccent"
+            android:textColor="#ffffff"
             android:textColorHint="@color/colorPrimary" />
     </android.support.design.widget.TextInputLayout>
 
@@ -112,7 +112,7 @@
             android:backgroundTint="@color/colorPrimary"
             android:hint="@string/confirm_password_hint"
             android:inputType="textPassword"
-            android:textColor="@color/colorAccent"
+            android:textColor="#ffffff"
             android:textColorHint="@color/colorPrimary" />
     </android.support.design.widget.TextInputLayout>
 

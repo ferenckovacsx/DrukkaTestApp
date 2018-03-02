@@ -2,6 +2,6 @@
 <resources>
     <color name="colorPrimary">#ADBE15</color>
     <color name="colorPrimaryDark">#ADBE15</color>
-    <color name="colorAccent">#FFFFFF</color>
+    <color name="colorAccent">#ADBE15</color>
     <color name="errorHintTextColor">#66FF0000</color>
 </resources>
