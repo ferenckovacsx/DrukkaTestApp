@@ -20,6 +20,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
+import android.webkit.MimeTypeMap;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -44,7 +45,8 @@ import retrofit2.Response;
 
 public class MainActivity extends AppCompatActivity {
 
-    String TAG = "DOCUMENTSACTIVITY";
+    final String TAG = "DOCUMENTSACTIVITY";
+
     int selectedItemPosition;
     int fileCount;
     int counter = 1;
@@ -197,7 +199,6 @@ public class MainActivity extends AppCompatActivity {
                 switch (responseCode) {
                     case 200:
                         Log.i(TAG, "Fetching data was successful. Number of files: " + response.body().size());
-                        Log.i(TAG, "getDocuments() listoffiles before" + listOfFiles.size());
 
                         listOfFiles = response.body();
                         if (listOfFiles.size() > 0) {
@@ -316,9 +317,12 @@ public class MainActivity extends AppCompatActivity {
 //            parts.add(body);
 //        }
 
-        File file = new File(getPath(MainActivity.this, fileuri));
+        String filePathFromUri = getPath(MainActivity.this, fileuri);
 
-        RequestBody requestFile = RequestBody.create(MediaType.parse("multipart/form-data"), file);
+        File file = new File(filePathFromUri);
+
+//        RequestBody requestFile = RequestBody.create(MediaType.parse("application/pdf"), file);
+        RequestBody requestFile = RequestBody.create(MediaType.parse(getMimeType(filePathFromUri)), file);
         MultipartBody.Part body = MultipartBody.Part.createFormData("file", file.getName(), requestFile);
 
 //        retrieve cookie from shared preferences
@@ -590,6 +594,17 @@ public class MainActivity extends AppCompatActivity {
      */
     public static boolean isGooglePhotosUri(Uri uri) {
         return "com.google.android.apps.photos.content".equals(uri.getAuthority());
+    }
+
+    public static String getMimeType(String url) {
+        String type = null;
+        String extension = MimeTypeMap.getFileExtensionFromUrl(url);
+        if (extension != null) {
+            type = MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension);
+        }
+
+        Log.i("getMimeType()", "MIMETYPE: " + type);
+        return type;
     }
 
 }
